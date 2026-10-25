@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>Shultimate · 飞盘规则助手</title>
+<!--
+  Shultimate · 飞盘规则助手
+  布局参照 DeepSeek Harness 桌面端（owner 2026-10-05 给的截图）：
+    窗口三灯 → 品牌 → 新对话 → 工作区（标题旁 2 个小图标）→「历史对话」折叠开关 + 会话列表 → 底部账号行
+  ⚠️ 2026-10-06 改了一处：原来照抄了一个「默认工作区」（带选中态、不可点）——
+    owner 点了没反应。本项目只有一个工作区，摆一个假的切换器只会让人以为程序坏了。
+    现在那一行是**真按钮**：点一下收起/展开下面的对话列表，右侧显示条数。
+  设计原则（owner 定，勿推翻）：这是个问答工具，不是控制台。
+  打开就能打字，不必先理解产品是怎么搭的。
+  纯 vanilla JS + 单 CSS，无框架、无 CDN、无构建 —— 守住「clone 即跑」。
+-->
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= 标题栏（仅桌面客户端） =================
+       位置与职责照 DeepSeek Harness 桌面端：最左边两个文字菜单「应用」「编辑」，
+       右边是 Windows 系统窗口按钮（减号/方框/叉，由 titleBarOverlay 绘制，我们不画）。
+       菜单本体由主进程 Menu.popup 渲染 —— 页面只负责两个按钮和它们的位置。
+       ⚠️ 整条是拖拽区，只有两个按钮 no-drag：否则这一行点不动、拖不动窗口。
+       网页版没有窗口可拖，所以 body 不带 .is-desktop，这条整条 display:none。 -->
+  <div class="titlebar" id="titlebar">
+    <button class="mbtn" id="mApp">应用</button>
+    <button class="mbtn" id="mEdit">编辑</button>
+    <span class="mspacer"></span>
+  </div>
+
+  <!-- ================= 侧栏 ================= -->
+  <aside class="nav" id="nav">
+    <div class="nav-brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <ellipse cx="12" cy="12" rx="10" ry="7.4"/>
+          <ellipse cx="12" cy="12" rx="4.6" ry="3.1"/>
+          <path d="M6.4 6.9c1.9-1.6 4.3-2.5 6.6-2.6"/>
+        </svg>
+      </span>
+      <b>Shultimate</b>
+    </div>
+
+    <div class="nav-chat">
+      <button class="newc" id="newChat">
+        <i class="ic"><svg viewBox="0 0 16 16"><path d="M8 3.4v9.2M3.4 8h9.2"/></svg></i>新对话
+      </button>
+      <button class="ast-pick" id="astPick">
+        <i class="ic"><svg viewBox="0 0 16 16"><path d="M8 2.4l1.35 3.1 3.1 1.35-3.1 1.35L8 11.3 6.65 8.2 3.55 6.85 6.65 5.5z"/></svg></i>
+        <span class="an" id="astName">—</span><span class="caret">▼</span>
+      </button>
+    </div>
+
+    <div class="ws-head">
+      <span class="ws-t">工作区</span>
+      <span class="ws-acts">
+        <button id="wsSearch" title="搜索对话"><i class="ic"><svg viewBox="0 0 16 16"><circle cx="7.1" cy="7.1" r="4.1"/><path d="M10.2 10.2l3 3"/></svg></i></button>
+        <button id="wsSort" title="排序：最新优先"><i class="ic"><svg viewBox="0 0 16 16"><path d="M4.4 3.2v9.6M4.4 12.8l-2-2M4.4 12.8l2-2M11.6 12.8V3.2M11.6 3.2l-2 2M11.6 3.2l2 2"/></svg></i></button>
+      </span>
+    </div>
+
+    <div class="hist-search" id="histSearch"><input id="histQ" type="search" placeholder="搜索对话" autocomplete="off"></div>
+
+    <!-- 对话列表的组标题 = 收起/展开开关。
+         ⚠️ 这里**曾经是个纯装饰的 `div`**：照抄了 DeepSeek 的「默认工作区」，
+         带一个选中态（.on）、悬停没反应、点了也没反应 —— owner 2026-10-06
+         点了它然后报「点了没反应」。那个元素的错不在"没实现功能"，
+         而在**它长得像能点**：图标 + 选中底色 + 加粗文字 = 一个按钮的全部特征。
+         现在它是真按钮：点一下收起/展开下面的对话列表，右侧显示条数。
+         顺带删掉标题行里第三个图标（原来也叫「收起历史」）——
+         同一件事不要两个入口，那是"两处真相"，早晚会不一致。 -->
+    <button class="ws-item" id="wsItem" title="收起历史对话">
+      <i class="ic"><svg viewBox="0 0 16 16"><path d="M2.2 4.4c0-.6.5-1 1-1h2.9l1.4 1.7h5.3c.6 0 1 .4 1 1v6c0 .6-.4 1-1 1H3.2c-.5 0-1-.4-1-1z"/></svg></i>
+      <span class="ws-n">历史对话</span>
+      <em class="ws-c" id="wsCnt"></em>
+      <span class="arw">▾</span>
+    </button>
+
+    <nav class="nav-scroll" id="navScroll"></nav>
+
+    <!-- 底部账号行 = 全部功能的唯一入口。不写"设置"两个字 ——
+         免得让人以为要先配置才能用。 -->
+    <button class="nav-me" id="navMe" title="全部功能">
+      <span class="ava"><i class="ic"><svg viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.6"/><path d="M2.9 13.4c.5-2.5 2.6-3.9 5.1-3.9s4.6 1.4 5.1 3.9"/></svg></i></span>
+      <span class="mt">
+        <span class="mn">Shultimate</span>
+        <span class="ms" id="meSub">368 条规则</span>
+      </span>
+      <span class="st" id="st" title="服务状态"><i></i></span>
+    </button>
+  </aside>
+
+  <!-- ================= 主区 ================= -->
+  <div class="body" id="body">
+    <!-- 顶栏：对话页整条隐藏（class=chat 时刻意不加），其余页面才有 -->
+    <div class="phead" id="phead">
+      <button class="burger" id="burger" title="菜单">☰</button>
+      <div class="tt"><h2 id="pgTitle">—</h2><div class="ds" id="pgDesc"></div></div>
+      <div class="act" id="pgAct"></div>
+    </div>
+    <div id="tabsSlot"></div>
+    <div class="pbody" id="pbody"><div class="wrap" id="wrap"></div></div>
+  </div>
+
+  <!-- 窗口控制：Windows 惯例的 − ▢ ✕，固定在右上角。
+       ⚠️ 上一版照抄 DeepSeek Harness 用了 macOS 的红黄绿圆点（hover 才出符号），
+       在 Windows 上用户按习惯去右上角找，**找不到就以为没有窗口控制**。
+       ⇒ 符号常驻可见，hover 关窗变红，这一版才是 Windows 用户预期的样子。
+       网页版没有窗口可关，所以只在客户端显示（body.is-desktop）。
+       放在 .app 内而不是 .nav 里：它是窗口级的，不属于侧栏。 -->
+  <!-- 窗口控制已交给系统：桌面客户端用 titleBarStyle:'hidden' + titleBarOverlay，
+       − ▢ ✕ 由 Windows 自己绘制（对标 DeepSeek Harness 的做法）。
+       早先在这里自绘过一排，位置对但"只是长得像"：无障碍树里没有、键盘到不了。
+       现在只留一块同样高度的拖拽区，让空白处能拖窗口。 -->
+
+  <div class="scrim" id="scrim"></div>
+</div>
+
+<!-- 助手选择浮层 -->
+<div class="pop" id="astPop"></div>
+<!-- 头像浮层：全部功能 -->
+<div class="pop me-pop" id="mePop"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

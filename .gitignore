@@ -1,0 +1,53 @@
+# ---- 密钥：绝不提交 ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ---- 可重建的产物 ----
+# 索引由 scripts/build_index.py 生成，含 3 MB+ 二进制，不入库。
+# 换 clone 后请按 README 自行重建。
+data/embeddings.bin
+data/embeddings.npz
+data/index.json
+data/usage.sqlite3
+data/usage.sqlite3-shm
+data/usage.sqlite3-wal
+data/source/official-zh.pdf
+data/rules.jsonl
+data/definitions.jsonl
+data/preface.jsonl
+data/summary.json
+# 查询改写缓存（本地跑评测时生成，含模型输出）
+data/rewrite_cache.jsonl
+
+# ---- 运行时产生的用户数据：绝不入库 ----
+# 反馈与查询日志含真实提问，属用户数据。
+data/feedback.jsonl
+data/queries.jsonl
+data/badcase_eval.jsonl
+data/health_alerts.log
+# 疑问库：运行时由 app/curated.py 创建，属部署者自己的知识资产。
+data/curated.jsonl
+data/_test_curated*.jsonl
+
+# ---- Python ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- 本地调试残留 ----
+*.bak*
+logs/
+shots/

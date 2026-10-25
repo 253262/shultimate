@@ -1,0 +1,2 @@
+# PDF parsing happens locally after downloading the official Chinese rules.
+pypdf==6.20.1
